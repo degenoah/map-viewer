@@ -1,21 +1,14 @@
 import { UnitData, UnitPosition, UnitMap, GeosData } from './types';
 
-export const dateKey2dateString = (dateKey: any): string => {
+export const dateKey2dateString = (
+  dateKey: any, 
+  fallback: string = '2023-01-01'
+): string => {
   const pattern = /(\d{4})(\d{2})(\d{2})/;
   const match = pattern.exec(dateKey);
-  let dateString = '2023-01-01'; // fallback
+  let dateString = fallback;
   if (match !== null) {
     dateString = `${match[1]}-${match[2]}-${match[3]}`;
-  }
-  return dateString;
-};
-
-export const dateKey2dateString2 = (dateKey: any): string => {
-  const pattern = /(\d{4})(\d{2})(\d{2})/;
-  const match = pattern.exec(dateKey);
-  let dateString = 'xxxx-xx-xx'; // fallback
-  if (match !== null) {
-    dateString = `${match[3]}.${match[2]}.${match[1]}`;
   }
   return dateString;
 };

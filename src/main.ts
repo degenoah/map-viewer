@@ -93,7 +93,10 @@ class MapViewer {
     // 
     // add toggle buttons
     // 
-
+    // most of the functions passed into these calls are duplicate.
+    // TODO: rewrite `addToggleButton` to handle button logic itself.
+    // 
+    
     this.addToggleButton(
       this.toggleTimelineControl,
       'Toggle Timeline Controls',
@@ -1046,12 +1049,12 @@ class MapViewer {
     const dateControl: HTMLInputElement | null =
       document.querySelector('#timeline-input');
     const dateDisplay: HTMLInputElement | null =
-    document.querySelector('#date-display');
+      document.querySelector('#date-display');
     if (dateControl !== null) {
       dateControl.value = helper.dateKey2dateString(this.currentDateKey);
     }
     if (dateDisplay !== null) {
-      dateDisplay.innerHTML = helper.dateKey2dateString2(this.currentDateKey);
+      dateDisplay.innerHTML = helper.dateKey2dateString(this.currentDateKey, 'xxxx-xx-xx');
     }
   }
 }
