@@ -1009,7 +1009,7 @@ class MapViewer {
       const it = this.cache.keys();
       const diff = this.cache.size - this.maxCacheSize;
       for (let i = 0; i < diff; i++) {
-        this.cache.delete(it.next().value);
+        this.cache.delete(it.next().value!);
       }
     }
   };
