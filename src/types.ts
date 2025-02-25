@@ -1,12 +1,12 @@
 export type Coordinate = [number, number];
 export type CoordinateList = Coordinate[];
-export type ListOfCoordinateLists = CoordinateList[];
+export type ListOfCoordinateLists = CoordinateList[]; // unused
 
 export type BaseData = {
   unit_map: UnitMap;
   dates: string[];
-  fortifications: FortificationsData;
-  dragon_teeth: DragonTeethData;
+  // fortifications: FortificationsData;
+  // dragon_teeth: DragonTeethData;
   styles: Styles;
 } | null;
 
@@ -26,10 +26,11 @@ export type Styles = {
 export type DateData = {};
 
 // frontline data is a list of coordinates
-export type FrontlineData = Coordinate[];
+export type FrontlineData = CoordinateList;
 
-export type FortificationsData = Coordinate[][];
-export type DragonTeethData = Coordinate[][];
+// export type FortificationsData = Coordinate[][];
+// export type DragonTeethData = Coordinate[][];
+export type FortificationsData = {} | null;
 
 // unit data is a list of UnitPositions
 export type UnitPosition = [number, Coordinate];

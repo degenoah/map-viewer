@@ -1,7 +1,7 @@
 import ms from 'milsymbol';
 import './styles/_main.scss';
 import * as mapper from './map';
-import { fetchBaseData, fetchDateData } from './fetcher';
+import { fetchBaseData, fetchDateData, fetchFortificationsData } from './fetcher';
 import * as helper from './helper';
 import * as L from 'leaflet';
 import { BaseData, TimeLineDirections, UnitProps } from './types';
@@ -12,11 +12,11 @@ class MapViewer {
   firstDateKey: string;
   lastDateKey: string;
   baseData: BaseData;
+  fortificationsData: any;
   latestData: any;
   layer_frontline: any;
   layer_frontline_areas: any;
   layer_fortifications: any;
-  layer_dragon_teeth: any;
   layer_units: any[];
   layer_geos: any[];
   maxCacheSize: number;
@@ -26,7 +26,6 @@ class MapViewer {
     units: boolean;
     geos: boolean;
     fortifications: boolean;
-    dragon_teeth: boolean;
     timeline: boolean;
     areas: boolean;
   };
@@ -39,11 +38,11 @@ class MapViewer {
     this.firstDateKey = '2023-01-01'; // fallback-default
     this.lastDateKey = '2024-12-31'; // fallback-default
     this.baseData = null;
+    this.fortificationsData = null;
     this.latestData = null;
     this.layer_frontline = null;
     this.layer_frontline_areas = [];
     this.layer_fortifications = null;
-    this.layer_dragon_teeth = null;
     this.layer_units = [];
     this.layer_geos = [];
     this.cache = new Map<string, any>();
@@ -52,8 +51,7 @@ class MapViewer {
     this.layer_status = {
       units: true,
       geos: true,
-      fortifications: false,
-      dragon_teeth: false,
+      fortifications: true,
       timeline: true,
       areas: true,
     };
@@ -67,6 +65,9 @@ class MapViewer {
 
     // load base data
     this.baseData = await fetchBaseData();
+
+    // load fortifications data
+    this.fortificationsData = await fetchFortificationsData();
 
     // if we don't have any data, display nothing
     if (this.baseData === null) {
@@ -119,13 +120,6 @@ class MapViewer {
     );
     
     this.addToggleButton(
-      this.toggleDragonTeethLayer,
-      'Toggle Dragon Teeth',
-      'dragonteeth-toggle-button',
-      this.layer_status.dragon_teeth
-    );
-    
-    this.addToggleButton(
       this.toggleUnitsLayer,
       'Toggle Units',
       'units-toggle-button',
@@ -149,9 +143,8 @@ class MapViewer {
     // fetch latest data
     await this.fetchData();
 
-    // generate static layers (fortifications, dragon teeth)
+    // generate static fortification layers.
     this.generateFortificationsLayer();
-    this.generateDragonTeethLayer();
 
     // update dynamic layers (frontline, units, geos)
     this.updateDynamicLayers();
@@ -444,24 +437,6 @@ class MapViewer {
     }
   };
 
-  toggleDragonTeethLayer = () => {
-    if (this.layer_dragon_teeth === null) {
-      return;
-    }
-    const btn = document.querySelector('.dragonteeth-toggle-button');
-    if (this.map.hasLayer(this.layer_dragon_teeth)) {
-      this.map.removeLayer(this.layer_dragon_teeth);
-      btn?.classList.remove('active');
-      btn?.classList.add('inactive');
-      this.layer_status.dragon_teeth = false;
-    } else {
-      this.map.addLayer(this.layer_dragon_teeth);
-      btn?.classList.remove('inactive');
-      btn?.classList.add('active');
-      this.layer_status.dragon_teeth = true;
-    }
-  };
-
   //=================================================
   // Toggle Unit Labels
   //=================================================
@@ -721,51 +696,95 @@ class MapViewer {
     // update all dynamic layers
     this.updateDynamicLayers();
   };
+
   //=================================================
   // Generate Static Layers (and add to map)
   //=================================================
 
   generateFortificationsLayer = () => {
-    if (this.baseData === null) {
+    if (this.fortificationsData === null) {
       return;
     }
+
     // create new fortifications layer and add to map
-    const fortificationsOptions = {
-      weight: 2,
-      color: '#000000',
-      fillOpacity: 1,
-      interactive: false,
-    };
-    this.layer_fortifications = L.polyline(
-      this.baseData['fortifications'],
-      fortificationsOptions
+    this.layer_fortifications = L.geoJSON(
+      [this.fortificationsData.misc, this.fortificationsData.trenches],
+      {
+        style: (feature) => {
+          // 
+          // `misc` properties:
+          //    `type`: a string stating the type of fortification it is.
+          //       `teeth`: Dragon's teeth
+          //       `ditch`: Anti-tank Ditch
+          // 
+
+          // Check for the `type` property (for `misc`)
+          if (feature?.properties.type) {
+            switch (feature?.properties.type) {
+              case 'teeth': {
+                return {
+                  weight: 1.5,
+                  color: '#C0C0C0',
+                  // fillOpacity: 1,
+                  interactive: false,
+                };
+              }
+              case 'ditch': {
+                return {
+                  weight: 1.5,
+                  color: '#00FF80',
+                  // fillOpacity: 1,
+                  interactive: false,
+                };
+              }
+            }
+          }
+
+          // 
+          // `trenches` properties:
+          //    `src_type`: an int representing the source type it was mapped from.
+          //       0: Mapped using high res Maxar and Pleiades imagery.
+          //       1: Mapped from geolocated videos or from guesswork, can be discarded.
+          //       2: Mapped using either Sentinel-2 or Planetscope imagery.
+          //       NaN: Originally used to map unfinished data and should be discarded.
+          // 
+
+          // Check for the `src_type` property (for `trenches`)
+          else if (feature?.properties.src_type !== undefined) {
+            // Don't render temp lines.
+            if (isNaN(feature?.properties.src_type)) {
+              return { opacity: 0 };
+            }
+
+            const trenchStyle: any = {
+              weight: 1,
+              color: '#FFAE00',
+              // fillOpacity: 1,
+              interactive: false,
+            };
+
+            switch (feature?.properties.src_type) {
+              case 1: {
+                trenchStyle.dashArray = "4";
+                break;
+              }
+              case 2: {
+                trenchStyle.dashArray = "3";
+                break;
+              }
+            }
+            return trenchStyle;
+          }
+
+          return { opacity: 0 };
+        }
+      }
     );
+
     const btn = document.querySelector('.fortifications-toggle-button');
     const isActive = btn?.classList.contains('active');
     if (isActive) {
       this.layer_fortifications.addTo(this.map);
-    }
-  };
-
-  generateDragonTeethLayer = () => {
-    if (this.baseData === null) {
-      return;
-    }
-    // create new dragon teeth layer and add to map
-    const dragonteethOptions = {
-      weight: 2,
-      color: '#f403fc',
-      fillOpacity: 1,
-      interactive: false,
-    };
-    this.layer_dragon_teeth = L.polyline(
-      this.baseData['dragon_teeth'],
-      dragonteethOptions
-    );
-    const btn = document.querySelector('.dragonteeth-toggle-button');
-    const isActive = btn?.classList.contains('active');
-    if (isActive) {
-      this.layer_dragon_teeth.addTo(this.map);
     }
   };
 
